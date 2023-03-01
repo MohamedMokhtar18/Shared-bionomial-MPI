@@ -2,36 +2,79 @@
 #include <stdio.h>
 #include <mpi.h>
 #include "test.h"
+#include <bits/stdc++.h>
+
+#define number_of_messages 50
+#define start_length 4
+#define length_factor 8
+#define max_length 8388608 /* ==> 2 x 32 MB per process */
+#define number_package_sizes 8
+/* #define max_length 67108864    */ /* ==> 2 x 0.5 GB per process */
+/* #define number_package_sizes 9 */
+using buf_dtype = float;
+
 int main(int argc, char *argv[])
 {
     int comp_srank(int myrank, int root, int nproc);
     int comp_rank(int srank, int root, int nproc);
-    void RMA_Bcast_binomial(const void *origin_addr, int my_rank,
-                            MPI_Datatype origin_datatype,
+    void RMA_Bcast_binomial(buf_dtype * origin_addr, int my_rank,
+                            int i,
                             MPI_Aint target_disp, int nproc,
-                            MPI_Datatype target_datatype,
+                            int j,
+                            int mid,
+                            int length,
+                            std::fstream &file,
                             MPI_Win win, MPI_Comm comm);
 
     // auto type_size = 0;
     // MPI_Type_size(origin_datatype, &type_size);
+    std::fstream file;
+    file.open("results.dat", std::ios::out);
+
     int my_rank,
         size;
     int srank, rank;
-    int sum, i;
+    int i, mid, length, test_value;
+    double start, finish, transfer_time;
     int provided = MPI_THREAD_MULTIPLE;
-    if (argv[1] == NULL)
-    {
-        throw std::runtime_error(" invalid argument error must be number to be send ");
-    }
+    // if (argv[1] == NULL)
+    // {
+    //     throw std::runtime_error(" invalid argument error must be number to be send ");
+    // }
 
-    int snd_buf = std::stoi(std::string(argv[1]));
+    float snd_buf[max_length];
     MPI_Win win;
     MPI_Comm comm_sm;
     setbuf(stdout, NULL);
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    RMA_Bcast_binomial(&snd_buf, my_rank, MPI_INT, 0, size, MPI_INT, win, comm_sm);
+    length = start_length;
+    for (int j = 1; j <= number_package_sizes; j++)
+    {
+        for (i = 0; i <= number_of_messages; i++)
+        {
+            if (i == 1)
+                start = MPI_Wtime();
+            test_value = j * 1000000 + i * 10000 + my_rank * 10;
+            mid = (length - 1) / number_of_messages * i;
+            snd_buf[0] = test_value + 1;
+            snd_buf[mid] = test_value + 2;
+            snd_buf[length - 1] = test_value + 3;
+            RMA_Bcast_binomial((buf_dtype *)snd_buf, my_rank, i, 0, size, j, mid, length, file, win, comm_sm);
+        }
+        finish = MPI_Wtime();
+        if (my_rank == 0)
+        {
+            transfer_time = (finish - start) / number_of_messages;
+            file << std::setw(10) << length * sizeof(float) << " bytes " << std::setw(12) << transfer_time * 1e6 << " usec " << std::setw(13) << 1.0e-6 * 2 * length * sizeof(float) / transfer_time << " MB/s" << std::endl;
+            printf("%10i bytes %12.3f usec %13.3f MB/s\n",
+                   length * (int)sizeof(float), transfer_time * 1e6, 1.0e-6 * 2 * length * sizeof(float) / transfer_time);
+        }
+        length = length * length_factor;
+    }
+
+    //  MPI_Win_free(&win);
     MPI_Finalize();
 }
 // comp_srank: Compute rank relative to root
@@ -45,19 +88,22 @@ int comp_rank(int srank, int root, int nproc)
 {
     return (srank + root) % nproc;
 }
-void RMA_Bcast_binomial(const void *origin_addr, int my_rank,
-                        MPI_Datatype origin_datatype,
+void RMA_Bcast_binomial(buf_dtype *origin_addr, int my_rank,
+                        int i,
                         MPI_Aint target_disp, int nproc,
-                        MPI_Datatype target_datatype,
+                        int j,
+                        int mid,
+                        int length, std::fstream &file,
                         MPI_Win win, MPI_Comm comm)
 {
-    int *rcv_buf_ptr;
+    // float rcv_buf[max_length];
+    buf_dtype *rcv_buf;
     // int rank;
     descr_t descr;
     descr.root = my_rank;
     MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm);
 
-    MPI_Win_allocate_shared((MPI_Aint)sizeof(int), sizeof(int), MPI_INFO_NULL, comm, &rcv_buf_ptr, &win);
+    MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm, &rcv_buf, &win);
 
     // descr.bufsize = origin_count * type_size;
     // descr.wid = wid;
@@ -72,12 +118,26 @@ void RMA_Bcast_binomial(const void *origin_addr, int my_rank,
             {
                 rank = comp_rank(rank, descr.root, nproc);
                 MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, win);
-                *rcv_buf_ptr = *(int *)(origin_addr);
+                rcv_buf[0] = (buf_dtype)(origin_addr[0]);
+                rcv_buf[mid] = (buf_dtype)(origin_addr[mid]);
+                rcv_buf[length - 1] = (buf_dtype)(origin_addr[length - 1]);
 
                 MPI_Win_unlock(rank, win);
                 MPI_Win_sync(win);
+                file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
+                     << " snd_buf[0," << mid << "," << (length - 1) << "]"
+                     << "=(" << origin_addr[0] << origin_addr[mid] << origin_addr[length - 1] << ")"
+                     << std::endl;
+                file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
+                     << " rcv_buf[0," << mid << "," << (length - 1) << "]"
+                     << "=(" << rcv_buf[0] << rcv_buf[mid] << rcv_buf[length - 1] << ")"
+                     << std::endl;
 
-                printf("%i Root %i\t with value %i\n", my_rank, rank, *rcv_buf_ptr);
+                // printf("%d: j=%d, i=%d --> snd_buf[0,%d,%d]=(%f,%f,%f)\n",
+                //        my_rank, j, i, mid, length - 1, origin_addr[0], origin_addr[mid], origin_addr[length - 1]);
+
+                // printf("%d: j=%d, i=%d --> rcv_buf[0,%d,%d]=(%f,%f,%f)\n",
+                //        my_rank, j, i, mid, length - 1, rcv_buf[0], rcv_buf[mid], rcv_buf[length - 1]);
             }
             else
             {
