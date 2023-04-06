@@ -36,10 +36,10 @@ void BinaryTreeBcast(buf_dtype *origin_addr, int my_rank,
             << std::endl;
         file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
              << " rcv_buf[0," << mid << "," << (length - 1) << "]"
-             << "=(" << rcv_buf[0] << rcv_buf[mid] << rcv_buf[length - 1] << ")"
+             << "=(" << (rcv_buf + (child1 - my_rank))[0] << (rcv_buf + (child1 - my_rank))[mid] << (rcv_buf + (child1 - my_rank))[length - 1] << ")"
              << "rank " << child1
              << std::endl;
-    }
+        }
     if (child2 < nproc)
     {
 
@@ -58,7 +58,7 @@ void BinaryTreeBcast(buf_dtype *origin_addr, int my_rank,
             << std::endl;
         file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
              << " rcv_buf[0," << mid << "," << (length - 1) << "]"
-             << "=(" << rcv_buf[0] << rcv_buf[mid] << rcv_buf[length - 1] << ")"
+             << "=(" << (rcv_buf + (child2 - my_rank))[0] << (rcv_buf + (child2 - my_rank))[mid] << (rcv_buf + (child2 - my_rank))[length - 1] << ")"
              << "rank " << child2
              << std::endl;
     }
