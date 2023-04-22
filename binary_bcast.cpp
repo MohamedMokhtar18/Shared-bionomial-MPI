@@ -1,7 +1,7 @@
 #include "binary_bcast.h"
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
 
-int BinaryTreeBcast(buf_dtype *origin_addr, int my_rank,
+int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                     int i,
                     int root, int nproc,
                     int j,
@@ -9,19 +9,7 @@ int BinaryTreeBcast(buf_dtype *origin_addr, int my_rank,
                     int length, std::fstream &file,
                     MPI_Win win, MPI_Comm comm)
 {
-    buf_dtype *rcv_buf; // rcv_buf pointer type
-
-    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm);
-    if (result != MPI_SUCCESS)
-    {
-        return result;
-    }
-
-    result = MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm, &rcv_buf, &win);
-    if (result != MPI_SUCCESS)
-    {
-        return result;
-    }
+    int result;
     int rank = (my_rank - root + nproc) % nproc; // reorder, so fake root is zero
 
     int child1 = 2 * rank + 1;
@@ -36,12 +24,12 @@ int BinaryTreeBcast(buf_dtype *origin_addr, int my_rank,
         result = MPI_Win_sync(win);
         if (result != MPI_SUCCESS)
         {
-            return result;
+            MPI_Abort(comm, result);
         }
         result = MPI_Win_unlock(child1, win);
         if (result != MPI_SUCCESS)
         {
-            return result;
+            MPI_Abort(comm, result);
         }
         file
             << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
@@ -65,12 +53,12 @@ int BinaryTreeBcast(buf_dtype *origin_addr, int my_rank,
         result = MPI_Win_sync(win);
         if (result != MPI_SUCCESS)
         {
-            return result;
+            MPI_Abort(comm, result);
         }
         result = MPI_Win_unlock(child2, win);
         if (result != MPI_SUCCESS)
         {
-            return result;
+            MPI_Abort(comm, result);
         }
         file
             << " " << my_rank << ": j=" << j << ", i=" << i << " --> "

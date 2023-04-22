@@ -1,7 +1,7 @@
 #include "linear_bcast.h"
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
 
-int RMA_Bcast_Linear(buf_dtype *origin_addr, int my_rank,
+int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                      int i,
                      int nproc,
                      int j,
@@ -12,24 +12,12 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, int my_rank,
 
     // float rcv_buf[max_length];
     //? declare arguments
-    buf_dtype *rcv_buf;
-    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm);
-    if (result != MPI_SUCCESS)
-    {
-        return result;
-    }
-
-    result = MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm, &rcv_buf, &win);
-    if (result != MPI_SUCCESS)
-    {
-        return result;
-    }
     for (auto rank = 0; rank < nproc; rank++)
     {
-        result = MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, win);
+        int result = MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, win);
         if (result != MPI_SUCCESS)
         {
-            return result;
+            MPI_Abort(comm, result);
         }
         *(rcv_buf + (rank - my_rank)) = *(origin_addr);
         // MPI_Win_flush(rank, win);
@@ -37,12 +25,12 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, int my_rank,
         result = MPI_Win_sync(win);
         if (result != MPI_SUCCESS)
         {
-            return result;
+            MPI_Abort(comm, result);
         }
         result = MPI_Win_unlock(rank, win);
         if (result != MPI_SUCCESS)
         {
-            return result;
+            MPI_Abort(comm, result);
         }
 
         // MPI_Win_sync(win);

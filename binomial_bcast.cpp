@@ -1,7 +1,7 @@
 #include "binomial_bcast.h"
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
 
-int RMA_Bcast_binomial(buf_dtype *origin_addr, int my_rank,
+int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                        int i,
                        const descr_t &descr, int nproc,
                        int j,
@@ -10,19 +10,8 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, int my_rank,
                        MPI_Win win, MPI_Comm comm)
 {
     //? declare arguments
-    buf_dtype *rcv_buf; // rcv_buf pointer type
 
-    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm);
-    if (result != MPI_SUCCESS)
-    {
-        return result;
-    }
-
-    result = MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm, &rcv_buf, &win);
-    if (result != MPI_SUCCESS)
-    {
-        return result;
-    }
+    int result;
     int srank = comp_srank(my_rank, descr.root, nproc); // Compute rank relative to root
     auto mask = 1;
     while (mask < nproc)
@@ -40,7 +29,7 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, int my_rank,
                 result = MPI_Win_sync(win);
                 if (result != MPI_SUCCESS)
                 {
-                    return result;
+                    MPI_Abort(comm, MPI_ERR_OTHER);
                 }
                 result = MPI_Win_unlock(rank, win);
                 // ! add results to the file
@@ -56,7 +45,7 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, int my_rank,
                      << std::endl;
                 if (result != MPI_SUCCESS)
                 {
-                    return result;
+                    MPI_Abort(comm, MPI_ERR_OTHER);
                 }
             }
             else
