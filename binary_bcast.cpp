@@ -1,12 +1,9 @@
 #include "binary_bcast.h"
+#include "mcs_lock.h"
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
-
+MCS_Mutex hdl_binary;      /* Mutex handle */
 int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
-                    int i,
                     int root, int nproc,
-                    int j,
-                    int mid,
-                    int length, std::fstream &file,
                     MPI_Win win, MPI_Comm comm)
 {
     int result;
@@ -14,6 +11,8 @@ int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
 
     int child1 = 2 * rank + 1;
     int child2 = 2 * rank + 2;
+    MCS_Mutex_create(my_rank, comm, &hdl_binary);
+    MCS_Mutex_lock(hdl_binary, my_rank);
 
     if (child1 < nproc)
     {
@@ -31,17 +30,6 @@ int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
         {
             MPI_Abort(comm, result);
         }
-        file
-            << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
-            << " snd_buf[0," << mid << "," << (length - 1) << "]"
-            << "=(" << origin_addr[0] << origin_addr[mid] << origin_addr[length - 1] << ")"
-            << "rank " << child1
-            << std::endl;
-        file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
-             << " rcv_buf[0," << mid << "," << (length - 1) << "]"
-             << "=(" << (rcv_buf + (child1 - my_rank))[0] << (rcv_buf + (child1 - my_rank))[mid] << (rcv_buf + (child1 - my_rank))[length - 1] << ")"
-             << "rank " << child1
-             << std::endl;
     }
     if (child2 < nproc)
     {
@@ -60,17 +48,8 @@ int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
         {
             MPI_Abort(comm, result);
         }
-        file
-            << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
-            << " snd_buf[0," << mid << "," << (length - 1) << "]"
-            << "=(" << origin_addr[0] << origin_addr[mid] << origin_addr[length - 1] << ")"
-            << "rank " << child2
-            << std::endl;
-        file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
-             << " rcv_buf[0," << mid << "," << (length - 1) << "]"
-             << "=(" << (rcv_buf + (child2 - my_rank))[0] << (rcv_buf + (child2 - my_rank))[mid] << (rcv_buf + (child2 - my_rank))[length - 1] << ")"
-             << "rank " << child2
-             << std::endl;
     }
+    MCS_Mutex_unlock(hdl_binary, my_rank);
+    MCS_Mutex_free(&hdl_binary);
     return MPI_SUCCESS;
 }

@@ -1,14 +1,14 @@
 #include "linear_bcast.h"
+#include "mcs_lock.h"
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
+MCS_Mutex hdl;             /* Mutex handle */
 
 int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
-                     int i,
                      int nproc,
-                     int j,
-                     int mid,
-                     int length, std::fstream &file,
                      MPI_Win win, MPI_Comm comm)
 {
+    MCS_Mutex_create(my_rank, comm, &hdl);
+    MCS_Mutex_lock(hdl, my_rank);
 
     // float rcv_buf[max_length];
     //? declare arguments
@@ -20,8 +20,6 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
             MPI_Abort(comm, result);
         }
         *(rcv_buf + (rank - my_rank)) = *(origin_addr);
-        // MPI_Win_flush(rank, win);
-        result = Compare_data(rcv_buf, origin_addr, rank, my_rank, file, win);
         result = MPI_Win_sync(win);
         if (result != MPI_SUCCESS)
         {
@@ -32,30 +30,20 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
         {
             MPI_Abort(comm, result);
         }
-
-        // MPI_Win_sync(win);
-        // file
-        //     << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
-        //     << " snd_buf[0," << mid << "," << (length - 1) << "]"
-        //     << "=(" << origin_addr[0] << origin_addr[mid] << origin_addr[length - 1] << ")"
-        //     << "rank " << rank
-        //     << std::endl;
-
-        // file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
-        //      << " rcv_buf[0," << mid << "," << (length - 1) << "]"
-        //      << "=(" << (rcv_buf + (rank - my_rank))[0] << (rcv_buf + (rank - my_rank))[mid] << (rcv_buf + (rank - my_rank))[length - 1] << ")"
-        //      << "rank " << rank
-        //      << std::endl;
     }
+    MCS_Mutex_unlock(hdl, my_rank);
+    MCS_Mutex_free(&hdl);
     return MPI_SUCCESS;
 }
 
-static int Compare_data(buf_dtype *buf, buf_dtype *origin_addr, int put_rank, int myrank, std::fstream &file, MPI_Win win)
+bool bcast_isdone(int comp_data, int myrank, MPI_Win &done_data_win)
 {
-    MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, MPI_COMM_WORLD, &buf, &win);
+    int read_data = 0;
+    MPI_Fetch_and_op(NULL, &read_data, MPI_INT, myrank, 0, MPI_NO_OP,
+                     done_data_win);
 
-    int result = MPI_Compare_and_swap(&buf, origin_addr, origin_addr, MPI_FLOAT, put_rank, (MPI_Aint)max_length * sizeof(buf_dtype), win);
-    file << "output " << buf[0] << " orginal " << origin_addr[0] << std::endl;
-    //  printf("result orginal %f result %f", origin_addr[0], buf[0]);
-    return result;
+    if (read_data == comp_data - 1)
+        return true;
+    else
+        return false;
 }

@@ -1,12 +1,10 @@
 #include "binomial_bcast.h"
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
+#include "mcs_lock.h"
+MCS_Mutex hdl_binomial; /* Mutex handle */
 
 int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
-                       int i,
                        const descr_t &descr, int nproc,
-                       int j,
-                       int mid,
-                       int length, std::fstream &file,
                        MPI_Win win, MPI_Comm comm)
 {
     //? declare arguments
@@ -14,6 +12,8 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
     int result;
     int srank = comp_srank(my_rank, descr.root, nproc); // Compute rank relative to root
     auto mask = 1;
+    MCS_Mutex_create(my_rank, comm, &hdl_binomial);
+    MCS_Mutex_lock(hdl_binomial, my_rank);
     while (mask < nproc)
     {
         if ((srank & mask) == 0)
@@ -32,17 +32,6 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                     MPI_Abort(comm, MPI_ERR_OTHER);
                 }
                 result = MPI_Win_unlock(rank, win);
-                // ! add results to the file
-                file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
-                     << " snd_buf[0," << mid << "," << (length - 1) << "]"
-                     << "=(" << origin_addr[0] << origin_addr[mid] << origin_addr[length - 1] << ")"
-                     << "rank " << rank
-                     << std::endl;
-                file << " " << my_rank << ": j=" << j << ", i=" << i << " --> "
-                     << " rcv_buf[0," << mid << "," << (length - 1) << "]"
-                     << "=(" << (rcv_buf + (rank - my_rank))[0] << (rcv_buf + (rank - my_rank))[mid] << (rcv_buf + (rank - my_rank))[length - 1] << ")"
-                     << "rank " << rank
-                     << std::endl;
                 if (result != MPI_SUCCESS)
                 {
                     MPI_Abort(comm, MPI_ERR_OTHER);
@@ -58,6 +47,8 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
             mask = mask << 1;
         }
     }
+    MCS_Mutex_unlock(hdl_binomial, my_rank);
+    MCS_Mutex_free(&hdl_binomial);
     return MPI_SUCCESS;
 }
 // comp_srank: Compute rank relative to root

@@ -93,11 +93,11 @@ int main(int argc, char *argv[])
             snd_buf[length - 1] = test_value + 3;
             // Todo make a generic method for each type to be compared
             if (bcast_type == binomial)
-                RMA_Bcast_binomial((buf_dtype *)snd_buf, rcv_buf, my_rank, i, descr, size, j, mid, length, file, win, comm_sm);
+                RMA_Bcast_binomial((buf_dtype *)snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
             else if (bcast_type == linear)
-                RMA_Bcast_Linear((buf_dtype *)snd_buf, rcv_buf, my_rank, i, size, j, mid, length, file, win, comm_sm);
+                RMA_Bcast_Linear((buf_dtype *)snd_buf, rcv_buf, my_rank, size, win, comm_sm);
             else if (bcast_type == binary)
-                BinaryTreeBcast((buf_dtype *)snd_buf, rcv_buf, my_rank, i, descr.root, size, j, mid, length, file, win, comm_sm);
+                BinaryTreeBcast((buf_dtype *)snd_buf, rcv_buf, my_rank, descr.root, size, win, comm_sm);
         }
         finish = MPI_Wtime();
         if (my_rank == 0)
