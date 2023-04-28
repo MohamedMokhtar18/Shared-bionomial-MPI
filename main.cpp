@@ -12,7 +12,7 @@
 #define number_package_sizes 8       /*number of package sizes for each size 16,128,...*/
 /* #define max_length 67108864    */ /* ==> 2 x 0.5 GB per process */
 /* #define number_package_sizes 9 */
-using buf_dtype = float; /*type of transfered message*/
+// using buf_dtype = int; /*type of transfered message*/
 enum bcast_types_t
 {
     linear = 1,
@@ -20,6 +20,8 @@ enum bcast_types_t
     binary = 3
 };
 bcast_types_t bcast_type = linear;
+std::fstream filetestbinomial, filetestbinary, filetestlinear; /* value for result file*/
+
 int main(int argc, char *argv[])
 { // ? variable declaration
     int my_rank,
@@ -28,7 +30,7 @@ int main(int argc, char *argv[])
     int i, mid, length, test_value;
     double start, finish, transfer_time;
     int provided = MPI_THREAD_MULTIPLE;
-    float snd_buf[max_length];
+    int *snd_buf;       //[max_length];
     buf_dtype *rcv_buf; // rcv_buf pointer type
 
     descr_t descr;
@@ -42,7 +44,6 @@ int main(int argc, char *argv[])
     setbuf(stdout, NULL);
     // Todo  create passing value for tybe of broadcast
     // ? MPI Intialization
-    //::testing::InitGoogleTest(&argc, argv);
     // boost::mpi::environment env(argc, argv);
 
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
@@ -60,7 +61,7 @@ int main(int argc, char *argv[])
     {
         MPI_Abort(comm_sm, result);
     }
-    descr.root = my_rank;
+    descr.root = 0;
     if (argc == 2)
     {
         if (std::string(argv[1]) == "linear")
@@ -69,6 +70,14 @@ int main(int argc, char *argv[])
             bcast_type = binomial;
         else if (std::string(argv[1]) == "binary")
             bcast_type = binary;
+        else if (std::string(argv[1]) == "test")
+        {
+            filetestbinomial.open("results/resultTestBinomial" + std::to_string(size) + ".dat", std::ios::app); /*create file and open it*/
+            filetestbinary.open("results/resultTestBinary" + std::to_string(size) + ".dat", std::ios::app);     /*create file and open it*/
+            filetestlinear.open("results/resultTestLinear" + std::to_string(size) + ".dat", std::ios::app);     /*create file and open it*/
+            ::testing::InitGoogleTest(&argc, argv);
+            return RUN_ALL_TESTS();
+        }
         else
             throw std::runtime_error("Invalid argument");
     }
@@ -80,98 +89,159 @@ int main(int argc, char *argv[])
         fileBench << "    message size      transfertime  duplex bandwidth per process and neighbor" << std::endl;
     }
     length = start_length;
-    for (int j = 1; j <= number_package_sizes; j++)
+    if (my_rank == 0)
     {
-        for (i = 0; i <= number_of_messages; i++)
+        for (int j = 1; j <= number_package_sizes; j++)
         {
-            if (i == 1)
-                start = MPI_Wtime(); // start the timer
-            test_value = j * 1000000 + i * 10000 + my_rank * 10;
-            mid = (length - 1) / number_of_messages * i;
-            snd_buf[0] = test_value + 1;
-            snd_buf[mid] = test_value + 2;
-            snd_buf[length - 1] = test_value + 3;
-            // Todo make a generic method for each type to be compared
-            if (bcast_type == binomial)
-                RMA_Bcast_binomial((buf_dtype *)snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
-            else if (bcast_type == linear)
-                RMA_Bcast_Linear((buf_dtype *)snd_buf, rcv_buf, my_rank, size, win, comm_sm);
-            else if (bcast_type == binary)
-                BinaryTreeBcast((buf_dtype *)snd_buf, rcv_buf, my_rank, descr.root, size, win, comm_sm);
+            for (i = 0; i <= number_of_messages; i++)
+            {
+                if (i == 1)
+                    start = MPI_Wtime(); // start the timer
+                test_value = j * 1000000 + i * 10000 + my_rank * 10;
+                mid = (length - 1) / number_of_messages * i;
+                snd_buf[0] = test_value + 1;
+                snd_buf[mid] = test_value + 2;
+                snd_buf[length - 1] = test_value + 3;
+                // Todo make a generic method for each type to be compared
+                if (bcast_type == binomial)
+                    RMA_Bcast_binomial((buf_dtype *)snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
+                else if (bcast_type == linear)
+                    RMA_Bcast_Linear((buf_dtype *)snd_buf, rcv_buf, my_rank, size, win, comm_sm);
+                else if (bcast_type == binary)
+                    BinaryTreeBcast((buf_dtype *)snd_buf, rcv_buf, my_rank, descr.root, size, win, comm_sm);
+            }
+            finish = MPI_Wtime();
+            if (my_rank == 0)
+            {
+                transfer_time = (finish - start) / number_of_messages; // calculate transfer message for each pacakge
+                fileBench << std::setw(10) << length * sizeof(float) << " bytes " << std::setw(12) << transfer_time * 1e6 << " usec " << std::setw(13) << 1.0e-6 * 2 * length * sizeof(float) / transfer_time << " MB/s" << std::endl;
+                printf("%10i bytes %12.3f usec %13.3f MB/s\n",
+                       length * (int)sizeof(float), transfer_time * 1e6, 1.0e-6 * 2 * length * sizeof(float) / transfer_time);
+            }
+            length = length * length_factor;
         }
-        finish = MPI_Wtime();
-        if (my_rank == 0)
-        {
-            transfer_time = (finish - start) / number_of_messages; // calculate transfer message for each pacakge
-            fileBench << std::setw(10) << length * sizeof(float) << " bytes " << std::setw(12) << transfer_time * 1e6 << " usec " << std::setw(13) << 1.0e-6 * 2 * length * sizeof(float) / transfer_time << " MB/s" << std::endl;
-            printf("%10i bytes %12.3f usec %13.3f MB/s\n",
-                   length * (int)sizeof(float), transfer_time * 1e6, 1.0e-6 * 2 * length * sizeof(float) / transfer_time);
-        }
-        length = length * length_factor;
+        MPI_Win_flush(my_rank, win);
     }
-    // ::testing::InitGoogleTest(&argc, argv);
-    // return RUN_ALL_TESTS();
+    else
+    {
+        MPI_Win_flush(my_rank, win);
+    }
+
     MPI_Win_free(&win);
     MPI_Finalize();
 }
-// TEST(BinaryTreeBcast, BroadcastToOtherProcesses)
-// {
-//     int mid = (4 - 1) / number_of_messages * 1;
-//     int my_rank, size;
-//     MPI_Win win;
-//     MPI_Comm comm_sm;
-//     MPI_Comm_size(MPI_COMM_WORLD, &size);
-//     std::fstream file;                                                                    /* value for result file*/
-//     file.open("results/resultTestBinary" + std::to_string(size) + ".dat", std::ios::out); /*create file and open it*/
 
-//     float snd_buf[max_length];
-//     snd_buf[0] = 4.2 + 1;
-//     snd_buf[mid] = 4.2 + 2;
-//     snd_buf[4 - 1] = 4.2 + 3;
-//     int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+TEST(BinaryTreeBcast, BroadcastToOtherProcesses)
+{
+    int mid = 2;
+    int my_rank, size;
+    MPI_Win win;
+    descr_t descr;
+    descr.root = 0;
+    MPI_Comm comm_sm;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
 
-//     res = BinaryTreeBcast(snd_buf, my_rank, 1, 0, 1, 1, mid, 4, file, win, comm_sm);
-//     EXPECT_EQ(res, MPI_SUCCESS);
-// }
-// TEST(RMA_Bcast_binomial, BroadcastToOtherProcesses)
-// {
-//     int mid = (4 - 1) / number_of_messages * 1;
-//     int my_rank, size;
-//     MPI_Win win;
-//     descr_t descr;
-//     descr.root = 0;
-//     MPI_Comm comm_sm;
-//     MPI_Comm_size(MPI_COMM_WORLD, &size);
-//     std::fstream file;                                                                      /* value for result file*/
-//     file.open("results/resultTestBinomial" + std::to_string(size) + ".dat", std::ios::out); /*create file and open it*/
+    buf_dtype snd_buf[max_length];
+    buf_dtype *rcv_buf;
+    snd_buf[0] = 4.2 + 1;
+    snd_buf[mid] = 4.2 + 2;
+    snd_buf[4 - 1] = 4.2 + 3;
+    int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
+    if (my_rank == 0)
+    {
+        res = BinaryTreeBcast(snd_buf, rcv_buf, my_rank, my_rank, size, win, comm_sm);
+        MPI_Win_flush(my_rank, win);
+        filetestbinary << size << " processes" << std::endl;
+        filetestbinary << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
+        filetestbinary << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
+    }
+    else
+    {
+        usleep((my_rank + 1) * 50000);
+        MPI_Win_flush(my_rank, win);
+        MPI_Win_sync(win);
+        filetestbinary << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
+    }
 
-//     float snd_buf[max_length];
-//     snd_buf[0] = 4.2 + 1;
-//     snd_buf[mid] = 4.2 + 2;
-//     snd_buf[4 - 1] = 4.2 + 3;
-//     int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Win_free(&win);
+    // MPI_Finalize();
+    EXPECT_EQ(res, MPI_SUCCESS);
+}
+TEST(RMA_Bcast_binomial, BroadcastToOtherProcesses)
+{
+    int mid = 2;
+    int my_rank, size;
+    MPI_Win win;
+    descr_t descr;
+    descr.root = 0;
+    MPI_Comm comm_sm;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
 
-//     res = RMA_Bcast_binomial(snd_buf, my_rank, 1, descr, 1, 1, mid, 4, file, win, comm_sm);
-//     EXPECT_EQ(res, MPI_SUCCESS);
-// }
-// TEST(RMA_Bcast_Linear, BroadcastToOtherProcesses)
-// {
-//     int mid = (4 - 1) / number_of_messages * 1;
-//     int my_rank, size;
-//     MPI_Win win;
-//     descr_t descr;
-//     descr.root = 0;
-//     MPI_Comm comm_sm;
-//     MPI_Comm_size(MPI_COMM_WORLD, &size);
-//     std::fstream file;                                                              /* value for result file*/
-//     file.open("results/resultTest" + std::to_string(size) + ".dat", std::ios::out); /*create file and open it*/
+    buf_dtype snd_buf[max_length];
+    buf_dtype *rcv_buf;
+    snd_buf[0] = 4.2 + 1;
+    snd_buf[mid] = 4.2 + 2;
+    snd_buf[4 - 1] = 4.2 + 3;
+    int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
+    if (my_rank == 0)
+    {
+        res = RMA_Bcast_binomial(snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
+        MPI_Win_flush(my_rank, win);
+        filetestbinomial << size << " processes" << std::endl;
+        filetestbinomial << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
+        filetestbinomial << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
+    }
+    else
+    {
+        usleep((my_rank + 1) * 50000);
+        MPI_Win_flush(my_rank, win);
+        MPI_Win_sync(win);
+        filetestbinomial << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
+    }
 
-//     float snd_buf[max_length];
-//     snd_buf[0] = 4.2 + 1;
-//     snd_buf[mid] = 4.2 + 2;
-//     snd_buf[4 - 1] = 4.2 + 3;
-//     int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Win_free(&win);
+    // MPI_Finalize();
+    EXPECT_EQ(res, MPI_SUCCESS);
+}
+TEST(RMA_Bcast_Linear, BroadcastToOtherProcesses)
+{
+    int mid = 2;
+    int my_rank, size;
+    MPI_Win win;
+    descr_t descr;
+    descr.root = 0;
+    MPI_Comm comm_sm;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
 
-//     res = RMA_Bcast_Linear(snd_buf, my_rank, 1, size, 1, mid, 4, file, win, comm_sm);
-//     EXPECT_EQ(res, MPI_SUCCESS);
-// }
+    buf_dtype snd_buf[max_length];
+    buf_dtype *rcv_buf;
+    snd_buf[0] = 4.2 + 1;
+    snd_buf[mid] = 4.2 + 2;
+    snd_buf[4 - 1] = 4.2 + 3;
+    int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
+    if (my_rank == 0)
+    {
+        res = RMA_Bcast_Linear(snd_buf, rcv_buf, my_rank, size, win, comm_sm);
+        MPI_Win_flush(my_rank, win);
+        filetestlinear << size << " processes" << std::endl;
+        filetestlinear << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
+        filetestlinear << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
+    }
+    else
+    {
+        usleep((my_rank + 1) * 50000);
+        MPI_Win_flush(my_rank, win);
+        MPI_Win_sync(win);
+        filetestlinear << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
+    }
+
+    MPI_Win_free(&win);
+    // MPI_Finalize();
+    EXPECT_EQ(res, MPI_SUCCESS);
+}
