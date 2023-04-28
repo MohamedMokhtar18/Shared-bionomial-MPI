@@ -7,19 +7,39 @@ int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                     MPI_Win win, MPI_Comm comm)
 {
     int result;
-    int rank = (my_rank - root + nproc) % nproc; // reorder, so fake root is zero
+    for (int i = 0; i < nproc; i++)
+    {
+        result = send_data_binary(origin_addr, rcv_buf, i, i, nproc, win, comm);
+    }
 
+    // MCS_Mutex_unlock(hdl_binary, my_rank);
+    // MCS_Mutex_free(&hdl_binary);
+    return result;
+}
+int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
+                     int root, int nproc,
+                     MPI_Win win, MPI_Comm comm)
+{
+    int result;
+    int rank = (my_rank - root + nproc) % nproc; // reorder, so fake root is zero
+    int offset;
+    int master_root = 0;
     int child1 = 2 * rank + 1;
     int child2 = 2 * rank + 2;
-    MCS_Mutex_create(my_rank, comm, &hdl_binary);
-    MCS_Mutex_lock(hdl_binary, my_rank);
+    // MCS_Mutex_create(my_rank, comm, &hdl_binary);
+    // MCS_Mutex_lock(hdl_binary, my_rank);
 
     if (child1 < nproc)
     {
         child1 = (child1 + root) % nproc; // mapping to real
-        result = MPI_Win_lock(MPI_LOCK_SHARED, child1, 0, win);
+        offset = +(child1 - master_root) * max_length;
 
-        *(rcv_buf + (child1 - my_rank)) = *(origin_addr);
+        result = MPI_Win_lock(MPI_LOCK_SHARED, child1, 0, win);
+        for (int i = 0; i < nproc; i++)
+        {
+            rcv_buf[i + offset] = origin_addr[i];
+        }
+        // *(rcv_buf + (child1 - my_rank)) = *(origin_addr);
         result = MPI_Win_sync(win);
         if (result != MPI_SUCCESS)
         {
@@ -35,9 +55,14 @@ int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
     {
 
         child2 = (child2 + root) % nproc; // mapping to real
-        result = MPI_Win_lock(MPI_LOCK_SHARED, child2, 0, win);
+        offset = +(child2 - master_root) * max_length;
 
-        *(rcv_buf + (child2 - my_rank)) = *(origin_addr);
+        result = MPI_Win_lock(MPI_LOCK_SHARED, child2, 0, win);
+        for (int i = 0; i < nproc; i++)
+        {
+            rcv_buf[i + offset] = origin_addr[i];
+        }
+        // *(rcv_buf + (child2 - my_rank)) = *(origin_addr);
         result = MPI_Win_sync(win);
         if (result != MPI_SUCCESS)
         {
@@ -49,7 +74,5 @@ int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
             MPI_Abort(comm, result);
         }
     }
-    MCS_Mutex_unlock(hdl_binary, my_rank);
-    MCS_Mutex_free(&hdl_binary);
     return MPI_SUCCESS;
 }
