@@ -4,7 +4,7 @@
 #include "linear_bcast.h"
 #include "binary_bcast.h"
 #include "gtest/gtest.h"
-
+#include "tests.cpp"
 #define number_of_messages 50 /*number of messages transfered per package */
 #define start_length 4        /*length of the array */
 #define length_factor 8
@@ -21,7 +21,6 @@ enum bcast_types_t
     test = 4
 };
 bcast_types_t bcast_type = linear;
-std::fstream filetestbinomial, filetestbinary, filetestlinear; /* value for result file*/
 
 int main(int argc, char *argv[])
 { // ? variable declaration
@@ -145,125 +144,4 @@ int main(int argc, char *argv[])
 
     MPI_Win_free(&win);
     MPI_Finalize();
-}
-
-TEST(BinaryTreeBcast, BroadcastToOtherProcesses)
-{
-    descr_t descr;
-    int length = start_length;
-    descr.message_length = length;
-    int mid = 2;
-    int my_rank, size;
-    MPI_Win win;
-    descr.root = 0;
-    MPI_Comm comm_sm;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
-
-    buf_dtype snd_buf[max_length];
-    buf_dtype *rcv_buf;
-    snd_buf[0] = 4.2 + 1;
-    snd_buf[mid] = 4.2 + 2;
-    snd_buf[4 - 1] = 4.2 + 3;
-    int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
-    if (my_rank == 0)
-    {
-        res = BinaryTreeBcast(snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
-        MPI_Win_flush(my_rank, win);
-        filetestbinary << size << " processes" << std::endl;
-        filetestbinary << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
-        filetestbinary << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
-    }
-    else
-    {
-        usleep((my_rank + 1) * 50000);
-        MPI_Win_flush(my_rank, win);
-        MPI_Win_sync(win);
-        filetestbinary << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
-    }
-
-    MPI_Win_free(&win);
-    // MPI_Finalize();
-    EXPECT_EQ(res, MPI_SUCCESS);
-}
-TEST(RMA_Bcast_binomial, BroadcastToOtherProcesses)
-{
-    descr_t descr;
-    int length = start_length;
-    descr.message_length = length;
-    int mid = 2;
-    int my_rank, size;
-    MPI_Win win;
-    descr.root = 0;
-    MPI_Comm comm_sm;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
-
-    buf_dtype snd_buf[max_length];
-    buf_dtype *rcv_buf;
-    snd_buf[0] = 4.2 + 1;
-    snd_buf[mid] = 4.2 + 2;
-    snd_buf[4 - 1] = 4.2 + 3;
-    int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
-    if (my_rank == 0)
-    {
-        res = RMA_Bcast_binomial(snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
-        MPI_Win_flush(my_rank, win);
-        filetestbinomial << size << " processes" << std::endl;
-        filetestbinomial << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
-        filetestbinomial << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
-    }
-    else
-    {
-        usleep((my_rank + 1) * 50000);
-        MPI_Win_flush(my_rank, win);
-        MPI_Win_sync(win);
-        filetestbinomial << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
-    }
-
-    MPI_Win_free(&win);
-    //  MPI_Finalize();
-    EXPECT_EQ(res, MPI_SUCCESS);
-}
-TEST(RMA_Bcast_Linear, BroadcastToOtherProcesses)
-{
-    descr_t descr;
-    int length = start_length;
-    descr.message_length = length;
-    int mid = 2;
-    int my_rank, size;
-    MPI_Win win;
-    descr.root = 0;
-    MPI_Comm comm_sm;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
-
-    buf_dtype snd_buf[max_length];
-    buf_dtype *rcv_buf;
-    snd_buf[0] = 4.2 + 1;
-    snd_buf[mid] = 4.2 + 2;
-    snd_buf[4 - 1] = 4.2 + 3;
-    int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
-    if (my_rank == 0)
-    {
-        res = RMA_Bcast_Linear(snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
-        MPI_Win_flush(my_rank, win);
-        filetestlinear << size << " processes" << std::endl;
-        filetestlinear << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
-        filetestlinear << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
-    }
-    else
-    {
-        usleep((my_rank + 1) * 50000);
-        MPI_Win_flush(my_rank, win);
-        MPI_Win_sync(win);
-        filetestlinear << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
-    }
-
-    MPI_Win_free(&win);
-    // MPI_Finalize();
-    EXPECT_EQ(res, MPI_SUCCESS);
 }

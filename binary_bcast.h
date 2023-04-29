@@ -1,5 +1,7 @@
+#pragma once
+
 #include <mpi.h>
-#include "test.h"
+#include "utils.h"
 
 using buf_dtype = float; /*type of transfered message*/
 #include <bits/stdc++.h>
