@@ -3,7 +3,7 @@
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
 MCS_Mutex hdl;             /* Mutex handle */
 
-int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
+int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank, descr_t descr,
                      int nproc,
                      MPI_Win win, MPI_Comm comm)
 {
@@ -22,7 +22,7 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
         }
         offset = +(rank - master_root) * max_length;
 
-        for (int i = 0; i < nproc; i++)
+        for (int i = 0; i < descr.message_length; i++)
         {
             rcv_buf[i + offset] = origin_addr[i];
         }

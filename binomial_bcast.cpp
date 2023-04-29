@@ -59,9 +59,9 @@ int send_loop(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                 result = MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, win);
                 // ! assign values to rcv_buf pointer
                 result = MPI_Win_sync(win);
-                for (int i = 0; i < nproc; i++)
+                for (int k = 0; k < descr.message_length; k++)
                 {
-                    rcv_buf[i + offset] = origin_addr[i];
+                    rcv_buf[k + offset] = origin_addr[k];
                 }
 
                 // *(rcv_buf + (rank - my_rank)) = *(origin_addr);

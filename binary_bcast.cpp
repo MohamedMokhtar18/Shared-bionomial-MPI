@@ -1,15 +1,18 @@
 #include "binary_bcast.h"
 #include "mcs_lock.h"
+
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
 MCS_Mutex hdl_binary;      /* Mutex handle */
 int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
-                    int root, int nproc,
+                    descr_t descr, int nproc,
                     MPI_Win win, MPI_Comm comm)
 {
     int result;
     for (int i = 0; i < nproc; i++)
     {
-        result = send_data_binary(origin_addr, rcv_buf, i, i, nproc, win, comm);
+        descr.root = i;
+        my_rank = i;
+        result = send_data_binary(origin_addr, rcv_buf, my_rank, descr, nproc, win, comm);
     }
 
     // MCS_Mutex_unlock(hdl_binary, my_rank);
@@ -17,11 +20,11 @@ int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
     return result;
 }
 int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
-                     int root, int nproc,
+                     descr_t descr, int nproc,
                      MPI_Win win, MPI_Comm comm)
 {
     int result;
-    int rank = (my_rank - root + nproc) % nproc; // reorder, so fake root is zero
+    int rank = (my_rank - descr.root + nproc) % nproc; // reorder, so fake root is zero
     int offset;
     int master_root = 0;
     int child1 = 2 * rank + 1;
@@ -31,11 +34,11 @@ int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
 
     if (child1 < nproc)
     {
-        child1 = (child1 + root) % nproc; // mapping to real
+        child1 = (child1 + descr.root) % nproc; // mapping to real
         offset = +(child1 - master_root) * max_length;
 
         result = MPI_Win_lock(MPI_LOCK_SHARED, child1, 0, win);
-        for (int i = 0; i < nproc; i++)
+        for (int i = 0; i < descr.message_length; i++)
         {
             rcv_buf[i + offset] = origin_addr[i];
         }
@@ -54,11 +57,11 @@ int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
     if (child2 < nproc)
     {
 
-        child2 = (child2 + root) % nproc; // mapping to real
+        child2 = (child2 + descr.root) % nproc; // mapping to real
         offset = +(child2 - master_root) * max_length;
 
         result = MPI_Win_lock(MPI_LOCK_SHARED, child2, 0, win);
-        for (int i = 0; i < nproc; i++)
+        for (int i = 0; i < descr.message_length; i++)
         {
             rcv_buf[i + offset] = origin_addr[i];
         }
