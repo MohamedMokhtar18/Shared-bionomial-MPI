@@ -36,7 +36,10 @@ int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
     {
         child1 = (child1 + descr.root) % nproc; // mapping to real
         offset = +(child1 - master_root) * max_length;
-
+        if (rcv_buf[offset] != 0)
+        {
+            return MPI_SUCCESS;
+        }
         result = MPI_Win_lock(MPI_LOCK_SHARED, child1, 0, win);
         for (int i = 0; i < descr.message_length; i++)
         {
@@ -59,6 +62,10 @@ int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
 
         child2 = (child2 + descr.root) % nproc; // mapping to real
         offset = +(child2 - master_root) * max_length;
+        if (rcv_buf[offset] != 0)
+        {
+            return MPI_SUCCESS;
+        }
 
         result = MPI_Win_lock(MPI_LOCK_SHARED, child2, 0, win);
         for (int i = 0; i < descr.message_length; i++)

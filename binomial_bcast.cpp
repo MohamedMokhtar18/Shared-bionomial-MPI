@@ -8,7 +8,6 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                        descr_t &descr, int nproc,
                        MPI_Win win, MPI_Comm comm)
 {
-
     int result;
     for (int i = 0; i < nproc; i++)
     {
@@ -56,6 +55,11 @@ int send_loop(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                 /*//! offset_left  is defined so that rcv_buf(xxx+offset) in process 'my_rank' is the same location as
 /*                              //!  rcv_buf(xxx) in process 'rank':                                       */
                 offset = +(rank - master_root) * max_length;
+                if (rcv_buf[offset] != 0)
+                {
+                    break;
+                }
+
                 result = MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, win);
                 // ! assign values to rcv_buf pointer
                 result = MPI_Win_sync(win);
