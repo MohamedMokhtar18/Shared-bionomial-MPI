@@ -24,43 +24,24 @@ bcast_types_t bcast_type = linear;
 
 int main(int argc, char *argv[])
 { // ? variable declaration
-    int my_rank, size, disp_unit, i, mid, length, test_value;
     std::string algname;
-    double start, finish, transfer_time;
     int provided = MPI_THREAD_MULTIPLE;
-    buf_dtype snd_buf[max_length]; //[max_length];
-    buf_dtype *rcv_buf;            // rcv_buf pointer type
-
-    descr_t descr;
-    MPI_Aint buf_size;
-    MPI_Comm tree_comm;
-    MPI_Win win;
-    MPI_Comm comm_sm;
-    std::fstream file; /* value for result file*/
-    std::fstream fileBench;
-
     setbuf(stdout, NULL);
-    // Todo  create passing value for tybe of broadcast
+    // // Todo  create passing value for tybe of broadcast
     // ? MPI Intialization
     // boost::mpi::environment env(argc, argv);
-
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+    int my_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-
+    MPI_Comm comm_sm;
+    int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
     if (result != MPI_SUCCESS)
     {
         MPI_Abort(comm_sm, result);
     }
-
-    result = MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
-    if (result != MPI_SUCCESS)
-    {
-        MPI_Abort(comm_sm, result);
-    }
-    MPI_Win_shared_query(win, 0, &buf_size, &disp_unit, &rcv_buf);
-    descr.root = 0;
+    //? choose the type of broadcast
     if (argc == 2)
     {
         if (std::string(argv[1]) == "linear")
@@ -81,6 +62,21 @@ int main(int argc, char *argv[])
         else
             throw std::runtime_error("Invalid argument");
     }
+    //? Shared memory allocate region
+    MPI_Aint buf_size;
+    MPI_Win win;
+    int disp_unit;
+    buf_dtype *rcv_buf; // rcv_buf pointer type
+    result = MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
+    if (result != MPI_SUCCESS)
+    {
+        MPI_Abort(comm_sm, result);
+    }
+    MPI_Win_shared_query(win, my_rank, &buf_size, &disp_unit, &rcv_buf);
+
+    //? File declaration
+    std::fstream file; /* value for result file*/
+    std::fstream fileBench;
     file.open("results/result" + std::string(argv[1]) + std::to_string(size) + ".dat", std::ios::out); /*create file and open it*/
     fileBench.open("results/result" + std::string(argv[1]) + std::to_string(size) + "Bench.dat", std::ios::out);
     if (my_rank == 0 && bcast_type != test)
@@ -88,9 +84,17 @@ int main(int argc, char *argv[])
         printf("    message size      transfertime  duplex bandwidth per process and neighbor\n");
         fileBench << "    message size      transfertime  duplex bandwidth per process and neighbor" << std::endl;
     }
-    length = start_length;
+    //! test variables for Broadcast
+
     if (my_rank == 0 && bcast_type != test)
     {
+        double start, finish, transfer_time;
+        int i, mid, length, test_value;
+        length = start_length;
+        descr_t descr;
+        descr.root = 0;
+        buf_dtype snd_buf[max_length]; //[max_length];
+
         for (int j = 1; j <= number_package_sizes; j++)
         {
             for (i = 0; i <= number_of_messages; i++)
@@ -113,7 +117,7 @@ int main(int argc, char *argv[])
                 else if (bcast_type == linear)
                 {
 
-                    RMA_Bcast_Linear((buf_dtype *)snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
+                    RMA_Bcast_Linear((buf_dtype *)snd_buf, MPI_FLOAT, buf_size, descr, size, win, comm_sm);
                 }
                 else if (bcast_type == binary)
                 {

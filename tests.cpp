@@ -30,13 +30,14 @@ TEST(BinaryTreeBcast, BroadcastToOtherProcesses)
     {
         res = BinaryTreeBcast(snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
         MPI_Win_flush(my_rank, win);
+        MPI_Win_sync(win);
         filetestbinary << size << " processes" << std::endl;
         filetestbinary << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
         filetestbinary << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
     }
     else
     {
-        usleep((my_rank + 1) * 50000);
+        // usleep((my_rank + 1) * 50000);
         MPI_Win_flush(my_rank, win);
         MPI_Win_sync(win);
         filetestbinary << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
@@ -52,8 +53,9 @@ TEST(RMA_Bcast_binomial, BroadcastToOtherProcesses)
     int length = start_length;
     descr.message_length = length;
     int mid = 2;
-    int my_rank, size;
+    int my_rank, size, disp_unit;
     MPI_Win win;
+    MPI_Aint buf_size;
     descr.root = 0;
     MPI_Comm comm_sm;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -66,17 +68,19 @@ TEST(RMA_Bcast_binomial, BroadcastToOtherProcesses)
     snd_buf[4 - 1] = 4.2 + 3;
     int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
+    MPI_Win_shared_query(win, my_rank, &buf_size, &disp_unit, &rcv_buf);
     if (my_rank == 0)
     {
         res = RMA_Bcast_binomial(snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
-        MPI_Win_flush(my_rank, win);
         filetestbinomial << size << " processes" << std::endl;
         filetestbinomial << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
         filetestbinomial << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
+        MPI_Win_flush(my_rank, win);
+        MPI_Win_sync(win);
     }
     else
     {
-        usleep((my_rank + 1) * 50000);
+        // usleep((my_rank + 1) * 50000);
         MPI_Win_flush(my_rank, win);
         MPI_Win_sync(win);
         filetestbinomial << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
@@ -92,10 +96,11 @@ TEST(RMA_Bcast_Linear, BroadcastToOtherProcesses)
     int length = start_length;
     descr.message_length = length;
     int mid = 2;
-    int my_rank, size;
+    int my_rank, size, disp_unit;
     MPI_Win win;
     descr.root = 0;
     MPI_Comm comm_sm;
+    MPI_Aint buf_size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
 
@@ -106,17 +111,22 @@ TEST(RMA_Bcast_Linear, BroadcastToOtherProcesses)
     snd_buf[4 - 1] = 4.2 + 3;
     int res = MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
+    MPI_Win_shared_query(win, my_rank, &buf_size, &disp_unit, &rcv_buf);
+
     if (my_rank == 0)
     {
-        res = RMA_Bcast_Linear(snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
+        res = RMA_Bcast_Linear((buf_dtype *)snd_buf, MPI_FLOAT, buf_size, descr, size, win, comm_sm);
+        ;
         MPI_Win_flush(my_rank, win);
+        MPI_Win_sync(win);
+
         filetestlinear << size << " processes" << std::endl;
         filetestlinear << "rank 0 Bcast([" << snd_buf[0] << "," << snd_buf[mid] << "," << snd_buf[4 - 1] << "])" << std::endl;
         filetestlinear << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;
     }
     else
     {
-        usleep((my_rank + 1) * 50000);
+        // usleep((my_rank + 1) * 50000);
         MPI_Win_flush(my_rank, win);
         MPI_Win_sync(win);
         filetestlinear << "rank " << my_rank << "-" << size << ":[" << rcv_buf[0] << "," << rcv_buf[mid] << "," << rcv_buf[4 - 1] << "]" << std::endl;

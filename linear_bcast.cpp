@@ -3,9 +3,8 @@
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
 MCS_Mutex hdl;             /* Mutex handle */
 
-int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank, descr_t descr,
-                     int nproc,
-                     MPI_Win win, MPI_Comm comm)
+int RMA_Bcast_Linear(buf_dtype *origin_addr, MPI_Datatype origin_datatype, MPI_Aint target_disp,
+                     descr_t descr, int nproc, MPI_Win win, MPI_Comm comm)
 {
     // MCS_Mutex_create(my_rank, comm, &hdl);
     // MCS_Mutex_lock(hdl, my_rank);
@@ -15,18 +14,18 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank, de
     //? declare arguments
     for (auto rank = 0; rank < nproc; rank++)
     {
-        int result = MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, win);
+        int result = MPI_Win_lock(MPI_LOCK_EXCLUSIVE, rank, 0, win);
         if (result != MPI_SUCCESS)
         {
             MPI_Abort(comm, result);
         }
-        offset = +(rank - master_root) * max_length;
+        // offset = +(rank - master_root) * max_length;
 
-        for (int i = 0; i < descr.message_length; i++)
-        {
-            rcv_buf[i + offset] = origin_addr[i];
-        }
-        // *(rcv_buf + (rank - my_rank)) = *(origin_addr);
+        // for (int i = 0; i < descr.message_length; i++)
+        // {
+        //     rcv_buf[i + offset] = origin_addr[i];
+        // }
+        MPI_Put(origin_addr, descr.message_length, origin_datatype, rank, 0, descr.message_length, origin_datatype, win);
         result = MPI_Win_sync(win);
         if (result != MPI_SUCCESS)
         {
@@ -38,6 +37,8 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank, de
             MPI_Abort(comm, result);
         }
     }
+    // *(rcv_buf + (rank - my_rank)) = *(origin_addr);
+
     // MCS_Mutex_unlock(hdl, my_rank);
     // MCS_Mutex_free(&hdl);
     return MPI_SUCCESS;
