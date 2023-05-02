@@ -24,17 +24,15 @@ bcast_types_t bcast_type = linear;
 
 int main(int argc, char *argv[])
 { // ? variable declaration
-    int my_rank,
-        size;
+    int my_rank, size, disp_unit, i, mid, length, test_value;
     std::string algname;
-    int i, mid, length, test_value;
     double start, finish, transfer_time;
     int provided = MPI_THREAD_MULTIPLE;
     buf_dtype snd_buf[max_length]; //[max_length];
     buf_dtype *rcv_buf;            // rcv_buf pointer type
 
     descr_t descr;
-
+    MPI_Aint buf_size;
     MPI_Comm tree_comm;
     MPI_Win win;
     MPI_Comm comm_sm;
@@ -61,6 +59,7 @@ int main(int argc, char *argv[])
     {
         MPI_Abort(comm_sm, result);
     }
+    MPI_Win_shared_query(win, 0, &buf_size, &disp_unit, &rcv_buf);
     descr.root = 0;
     if (argc == 2)
     {
