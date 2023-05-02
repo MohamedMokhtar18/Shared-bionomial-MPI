@@ -38,9 +38,8 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
     if (result != MPI_SUCCESS)
-    {
         MPI_Abort(comm_sm, result);
-    }
+
     //? choose the type of broadcast
     if (argc == 2)
     {
@@ -69,9 +68,8 @@ int main(int argc, char *argv[])
     buf_dtype *rcv_buf; // rcv_buf pointer type
     result = MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
     if (result != MPI_SUCCESS)
-    {
         MPI_Abort(comm_sm, result);
-    }
+
     MPI_Win_shared_query(win, my_rank, &buf_size, &disp_unit, &rcv_buf);
 
     //? File declaration
@@ -109,21 +107,11 @@ int main(int argc, char *argv[])
                 descr.message_length = length;
                 // Todo make a generic method for each type to be compared
                 if (bcast_type == binomial)
-                {
-
                     RMA_Bcast_binomial((buf_dtype *)snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
-                }
-
                 else if (bcast_type == linear)
-                {
-
                     RMA_Bcast_Linear((buf_dtype *)snd_buf, MPI_FLOAT, buf_size, descr, size, win, comm_sm);
-                }
                 else if (bcast_type == binary)
-                {
-
                     BinaryTreeBcast((buf_dtype *)snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
-                }
             }
             finish = MPI_Wtime();
             if (my_rank == 0)
@@ -140,9 +128,7 @@ int main(int argc, char *argv[])
     else
     {
         if (bcast_type != test)
-        {
             MPI_Win_flush(my_rank, win);
-        }
     }
 
     MPI_Win_free(&win);

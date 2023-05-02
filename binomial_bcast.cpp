@@ -15,9 +15,6 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
         my_rank = i;
         result = send_loop(origin_addr, rcv_buf, my_rank, descr, nproc, win, comm);
     }
-
-    // MCS_Mutex_unlock(hdl_binomial, my_rank);
-    // MCS_Mutex_free(&hdl_binomial);
     return result;
 }
 // comp_srank: Compute rank relative to root
@@ -42,8 +39,6 @@ int send_loop(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
     int srank = comp_srank(my_rank, descr.root, nproc); // Compute rank relative to root
     auto mask = 1;
     int offset;
-    // MCS_Mutex_create(my_rank, comm, &hdl_binomial);
-    // MCS_Mutex_lock(hdl_binomial, my_rank);
     while (mask < nproc)
     {
         if ((srank & mask) == 0)
@@ -56,29 +51,22 @@ int send_loop(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
 /*                              //!  rcv_buf(xxx) in process 'rank':                                       */
                 offset = +(rank - master_root) * max_length;
                 if (rcv_buf[offset] != 0)
-                {
                     break;
-                }
 
                 result = MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, win);
                 // ! assign values to rcv_buf pointer
                 result = MPI_Win_sync(win);
                 for (int k = 0; k < descr.message_length; k++)
-                {
                     rcv_buf[k + offset] = origin_addr[k];
-                }
 
                 // *(rcv_buf + (rank - my_rank)) = *(origin_addr);
                 result = MPI_Win_sync(win);
                 if (result != MPI_SUCCESS)
-                {
                     MPI_Abort(comm, MPI_ERR_OTHER);
-                }
+
                 result = MPI_Win_unlock(rank, win);
                 if (result != MPI_SUCCESS)
-                {
                     MPI_Abort(comm, MPI_ERR_OTHER);
-                }
             }
             else
             {
@@ -91,7 +79,5 @@ int send_loop(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
             mask = mask << 1;
         }
     }
-    // MCS_Mutex_unlock(hdl_binomial, my_rank);
-    // MCS_Mutex_free(&hdl_binomial);
     return MPI_SUCCESS;
 }
