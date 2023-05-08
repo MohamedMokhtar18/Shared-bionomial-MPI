@@ -2,6 +2,7 @@
 #include "binomial_bcast.h"
 #include "linear_bcast.h"
 #include "binary_bcast.h"
+#include <random>
 #define start_length 4     /*length of the array */
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
 

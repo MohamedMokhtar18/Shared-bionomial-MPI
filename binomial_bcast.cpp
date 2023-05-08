@@ -47,26 +47,12 @@ int send_loop(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
             if (rank < nproc)
             {
                 rank = comp_rank(rank, descr.root, nproc); // Compute rank from srank
-                /*//! offset_left  is defined so that rcv_buf(xxx+offset) in process 'my_rank' is the same location as
+                /*//! offset  is defined so that rcv_buf(xxx+offset) in process 'my_rank' is the same location as
 /*                              //!  rcv_buf(xxx) in process 'rank':                                       */
                 offset = +(rank - master_root) * max_length;
                 if (rcv_buf[offset] != 0)
                     break;
-
-                result = MPI_Win_lock(MPI_LOCK_SHARED, rank, 0, win);
-                // ! assign values to rcv_buf pointer
-                result = MPI_Win_sync(win);
-                for (int k = 0; k < descr.message_length; k++)
-                    rcv_buf[k + offset] = origin_addr[k];
-
-                // *(rcv_buf + (rank - my_rank)) = *(origin_addr);
-                result = MPI_Win_sync(win);
-                if (result != MPI_SUCCESS)
-                    MPI_Abort(comm, MPI_ERR_OTHER);
-
-                result = MPI_Win_unlock(rank, win);
-                if (result != MPI_SUCCESS)
-                    MPI_Abort(comm, MPI_ERR_OTHER);
+                result = move_data(origin_addr, rcv_buf, offset, rank, descr.message_length, win);
             }
             else
             {

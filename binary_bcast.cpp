@@ -15,8 +15,6 @@ int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
         result = send_data_binary(origin_addr, rcv_buf, my_rank, descr, nproc, win, comm);
     }
 
-    // MCS_Mutex_unlock(hdl_binary, my_rank);
-    // MCS_Mutex_free(&hdl_binary);
     return result;
 }
 int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
@@ -29,8 +27,6 @@ int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
     int master_root = 0;
     int child1 = 2 * rank + 1;
     int child2 = 2 * rank + 2;
-    // MCS_Mutex_create(my_rank, comm, &hdl_binary);
-    // MCS_Mutex_lock(hdl_binary, my_rank);
 
     if (child1 < nproc)
     {
@@ -40,22 +36,7 @@ int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
         {
             return MPI_SUCCESS;
         }
-        result = MPI_Win_lock(MPI_LOCK_SHARED, child1, 0, win);
-        for (int i = 0; i < descr.message_length; i++)
-        {
-            rcv_buf[i + offset] = origin_addr[i];
-        }
-        // *(rcv_buf + (child1 - my_rank)) = *(origin_addr);
-        result = MPI_Win_sync(win);
-        if (result != MPI_SUCCESS)
-        {
-            MPI_Abort(comm, result);
-        }
-        result = MPI_Win_unlock(child1, win);
-        if (result != MPI_SUCCESS)
-        {
-            MPI_Abort(comm, result);
-        }
+        result = move_data(origin_addr, rcv_buf, offset, child1, descr.message_length, win);
     }
     if (child2 < nproc)
     {
@@ -66,23 +47,7 @@ int send_data_binary(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
         {
             return MPI_SUCCESS;
         }
-
-        result = MPI_Win_lock(MPI_LOCK_SHARED, child2, 0, win);
-        for (int i = 0; i < descr.message_length; i++)
-        {
-            rcv_buf[i + offset] = origin_addr[i];
-        }
-        // *(rcv_buf + (child2 - my_rank)) = *(origin_addr);
-        result = MPI_Win_sync(win);
-        if (result != MPI_SUCCESS)
-        {
-            MPI_Abort(comm, result);
-        }
-        result = MPI_Win_unlock(child2, win);
-        if (result != MPI_SUCCESS)
-        {
-            MPI_Abort(comm, result);
-        }
+        result = move_data(origin_addr, rcv_buf, offset, child2, descr.message_length, win);
     }
-    return MPI_SUCCESS;
+    return result;
 }

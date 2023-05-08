@@ -9,7 +9,6 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, MPI_Datatype origin_datatype, MPI_A
     // MCS_Mutex_create(my_rank, comm, &hdl);
     // MCS_Mutex_lock(hdl, my_rank);
     int master_root = 0;
-    int offset;
     //? declare arguments
     for (auto rank = 0; rank < nproc; rank++)
     {

@@ -22,24 +22,36 @@ enum bcast_types_t
 };
 bcast_types_t bcast_type = linear;
 
-int main(int argc, char *argv[])
-{ // ? variable declaration
-    std::string algname;
+void intialize_send_buffer(buf_dtype *snd_buf, int test_value, int length, int message_number)
+{
+    int mid = (length - 1) / number_of_messages * message_number;
+    snd_buf[0] = test_value + 1;
+    snd_buf[mid] = test_value + 2;
+    snd_buf[length - 1] = test_value + 3;
+}
+int MPI_intialization(int *argc, char ***argv, MPI_Comm *comm_sm)
+{
     int provided = MPI_THREAD_MULTIPLE;
     setbuf(stdout, NULL);
-    // // Todo  create passing value for tybe of broadcast
-    // ? MPI Intialization
-    // boost::mpi::environment env(argc, argv);
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    int my_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE, &provided);
+
+    return MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, comm_sm);
+}
+int main(int argc, char *argv[])
+{ // ? variable declaration
+  // ? MPI Intialization
+    std::string algname;
     MPI_Comm comm_sm;
-    int size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    int result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
+    int result = MPI_intialization(&argc, &argv, &comm_sm);
+
     if (result != MPI_SUCCESS)
         MPI_Abort(comm_sm, result);
 
+    int my_rank;
+    MPI_Comm_rank(comm_sm, &my_rank);
+
+    int size;
+    MPI_Comm_size(comm_sm, &size);
     //? choose the type of broadcast
     if (argc == 2)
     {
@@ -100,10 +112,7 @@ int main(int argc, char *argv[])
                 if (i == 1)
                     start = MPI_Wtime(); // start the timer
                 test_value = j * 1000000 + i * 10000 + my_rank * 10;
-                mid = (length - 1) / number_of_messages * i;
-                snd_buf[0] = test_value + 1;
-                snd_buf[mid] = test_value + 2;
-                snd_buf[length - 1] = test_value + 3;
+                intialize_send_buffer(snd_buf, test_value, length, i);
                 descr.message_length = length;
                 // Todo make a generic method for each type to be compared
                 if (bcast_type == binomial)
