@@ -22,7 +22,7 @@ TEST(BinaryTreeBcast, BroadcastToOtherProcesses)
     int disp_unit;
     result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
     result = MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
-    result = MPI_Win_shared_query(win, my_rank, &buf_size, &disp_unit, &rcv_buf);
+    result = MPI_Win_shared_query(win, 0, &buf_size, &disp_unit, &rcv_buf);
 
     //? send buffer intialization with values
     buf_dtype snd_buf[max_length];
@@ -73,7 +73,7 @@ TEST(RMA_Bcast_binomial, BroadcastToOtherProcesses)
     buf_dtype *rcv_buf;
     result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
     MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
-    MPI_Win_shared_query(win, my_rank, &buf_size, &disp_unit, &rcv_buf);
+    MPI_Win_shared_query(win, 0, &buf_size, &disp_unit, &rcv_buf);
     //? send buffer intialization with values
     int length = start_length;
     descr_t descr;
@@ -124,7 +124,7 @@ TEST(RMA_Bcast_Linear, BroadcastToOtherProcesses)
     buf_dtype *rcv_buf;
     result = MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_sm);
     MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
-    MPI_Win_shared_query(win, my_rank, &buf_size, &disp_unit, &rcv_buf);
+    MPI_Win_shared_query(win, 0, &buf_size, &disp_unit, &rcv_buf);
     //? send buffer intialization with values
     int length = start_length;
     descr_t descr;
@@ -148,7 +148,7 @@ TEST(RMA_Bcast_Linear, BroadcastToOtherProcesses)
     }
     else
     {
-        //   usleep((my_rank + 1) * 50000);
+        // usleep((my_rank + 1) * 50000);
         //! flush memory
         MPI_Win_flush(my_rank, win);
         MPI_Win_sync(win);

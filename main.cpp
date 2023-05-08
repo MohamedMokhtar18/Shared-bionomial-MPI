@@ -81,8 +81,10 @@ int main(int argc, char *argv[])
     result = MPI_Win_allocate_shared((MPI_Aint)max_length * sizeof(buf_dtype), sizeof(buf_dtype), MPI_INFO_NULL, comm_sm, &rcv_buf, &win);
     if (result != MPI_SUCCESS)
         MPI_Abort(comm_sm, result);
-
-    MPI_Win_shared_query(win, my_rank, &buf_size, &disp_unit, &rcv_buf);
+    if (my_rank != 0)
+    {
+        MPI_Win_shared_query(win, 0, &buf_size, &disp_unit, &rcv_buf);
+    }
 
     //? File declaration
     std::fstream file; /* value for result file*/
