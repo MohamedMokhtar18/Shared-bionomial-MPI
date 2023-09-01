@@ -1,4 +1,5 @@
-mpic++.openmpi -o test.o binomial_bcast.cpp linear_bcast.cpp binary_bcast.cpp  test.cpp
+mpic++.openmpi -o test.o binomial_bcast.cpp linear_bcast.cpp binary_bcast.cpp binomial_bcast_one_sided.cpp tests.cpp main.cpp
+ulimit -s unlimited 
 mpirun.openmpi --hostfile hostfile -np 8 test.o binary
 mpirun.openmpi --hostfile hostfile -np 8 test.o binomial
 mpirun.openmpi --hostfile hostfile -np 8 test.o linear
