@@ -1,7 +1,7 @@
 #include "linear_bcast.h"
-#include "mcs_lock.h"
+// #include "mcs_lock.h"
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
-MCS_Mutex hdl;             /* Mutex handle */
+// MCS_Mutex hdl;             /* Mutex handle */
 
 int RMA_Bcast_Linear(buf_dtype *origin_addr, MPI_Datatype origin_datatype, MPI_Aint target_disp,
                      descr_t descr, int nproc, MPI_Win win, MPI_Comm comm)
@@ -17,7 +17,7 @@ int RMA_Bcast_Linear(buf_dtype *origin_addr, MPI_Datatype origin_datatype, MPI_A
             MPI_Abort(comm, result);
 
         MPI_Put(origin_addr, descr.message_length, origin_datatype, rank, 0, descr.message_length, origin_datatype, win);
-        result = MPI_Win_sync(win);
+        // result = MPI_Win_sync(win);
         if (result != MPI_SUCCESS)
             MPI_Abort(comm, result);
 
