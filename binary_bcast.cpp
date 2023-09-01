@@ -1,8 +1,8 @@
 #include "binary_bcast.h"
-#include "mcs_lock.h"
+// #include "mcs_lock.h"
 
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
-MCS_Mutex hdl_binary;      /* Mutex handle */
+// MCS_Mutex hdl_binary;      /* Mutex handle */
 int BinaryTreeBcast(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                     descr_t descr, int nproc,
                     MPI_Win win, MPI_Comm comm)

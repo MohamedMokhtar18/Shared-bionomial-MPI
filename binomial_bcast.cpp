@@ -1,8 +1,8 @@
 #include "binomial_bcast.h"
 #define max_length 8388608 /* ==> 2 x 32 MB per process */
-#include "mcs_lock.h"
+// #include "mcs_lock.h"
 
-MCS_Mutex hdl_binomial; /* Mutex handle */
+// MCS_Mutex hdl_binomial; /* Mutex handle */
 
 int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                        descr_t &descr, int nproc,
@@ -17,17 +17,7 @@ int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
     }
     return result;
 }
-// comp_srank: Compute rank relative to root
-int comp_srank(int myrank, int root, int nproc)
-{
-    return (myrank - root + nproc) % nproc;
-}
 
-// comp_rank: Compute rank from srank
-int comp_rank(int srank, int root, int nproc)
-{
-    return (srank + root) % nproc;
-}
 
 int send_loop(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
               const descr_t &descr, int nproc,

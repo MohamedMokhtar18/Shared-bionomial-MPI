@@ -27,3 +27,14 @@ inline int move_data(buf_dtype *source, buf_dtype *distination, int offset, int 
     result = MPI_Win_unlock(rank, win);
     return result;
 }
+// comp_srank: Compute rank relative to root
+inline int comp_srank(int myrank, int root, int nproc)
+{
+    return (myrank - root + nproc) % nproc;
+}
+
+// comp_rank: Compute rank from srank
+inline int comp_rank(int srank, int root, int nproc)
+{
+    return (srank + root) % nproc;
+}

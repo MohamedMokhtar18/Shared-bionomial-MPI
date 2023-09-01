@@ -3,8 +3,11 @@
 #include "binomial_bcast.h"
 #include "linear_bcast.h"
 #include "binary_bcast.h"
-#include "gtest/gtest.h"
-#include "tests.cpp"
+#include "binomial_bcast_one_sided.h"
+#include "binary_bcast_one_side.h"
+
+// #include "gtest/gtest.h"
+// #include "tests.cpp"
 #define number_of_messages 50 /*number of messages transfered per package */
 #define start_length 4        /*length of the array */
 #define length_factor 8
@@ -18,7 +21,9 @@ enum bcast_types_t
     linear = 1,
     binomial = 2,
     binary = 3,
-    test = 4
+    test = 4,
+    binomialOne=5,
+     binaryOne=6
 };
 bcast_types_t bcast_type = linear;
 
@@ -61,14 +66,18 @@ int main(int argc, char *argv[])
             bcast_type = binomial;
         else if (std::string(argv[1]) == "binary")
             bcast_type = binary;
+        else if (std::string(argv[1]) == "binomialOne")
+            bcast_type = binomialOne;
+        else if (std::string(argv[1]) == "binaryOne")
+            bcast_type = binomialOne;
         else if (std::string(argv[1]) == "test")
         {
-            filetestbinomial.open("results/resultTestBinomial" + std::to_string(size) + ".dat", std::ios::app); /*create file and open it*/
-            filetestbinary.open("results/resultTestBinary" + std::to_string(size) + ".dat", std::ios::app);     /*create file and open it*/
-            filetestlinear.open("results/resultTestLinear" + std::to_string(size) + ".dat", std::ios::app);     /*create file and open it*/
-            ::testing::InitGoogleTest(&argc, argv);
-            bcast_type = test;
-            int res = RUN_ALL_TESTS();
+            // filetestbinomial.open("results/resultTestBinomial" + std::to_string(size) + ".dat", std::ios::app); /*create file and open it*/
+            // filetestbinary.open("results/resultTestBinary" + std::to_string(size) + ".dat", std::ios::app);     /*create file and open it*/
+            // filetestlinear.open("results/resultTestLinear" + std::to_string(size) + ".dat", std::ios::app);     /*create file and open it*/
+            // ::testing::InitGoogleTest(&argc, argv);
+            // bcast_type = test;
+            // int res = RUN_ALL_TESTS();
         }
         else
             throw std::runtime_error("Invalid argument");
@@ -119,10 +128,14 @@ int main(int argc, char *argv[])
                 // Todo make a generic method for each type to be compared
                 if (bcast_type == binomial)
                     RMA_Bcast_binomial((buf_dtype *)snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
+                else if (bcast_type==binomialOne)
+                    RMA_Bcast_binomial_OneSide((buf_dtype *)snd_buf,MPI_FLOAT,buf_size,my_rank,descr,size,win,comm_sm);
                 else if (bcast_type == linear)
                     RMA_Bcast_Linear((buf_dtype *)snd_buf, MPI_FLOAT, buf_size, descr, size, win, comm_sm);
                 else if (bcast_type == binary)
                     BinaryTreeBcast((buf_dtype *)snd_buf, rcv_buf, my_rank, descr, size, win, comm_sm);
+                else if (bcast_type==binaryOne)
+                    RMA_Bcast_binary_OneSide((buf_dtype *)snd_buf,MPI_FLOAT,buf_size,my_rank,descr,size,win,comm_sm);
             }
             finish = MPI_Wtime();
             if (my_rank == 0)
