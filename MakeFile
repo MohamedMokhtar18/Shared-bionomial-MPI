@@ -3,10 +3,10 @@ PROG=main
 PROG_OBJ= binary_bcast_one_side.o binary_bcast.o binomial_bcast_one_sided.o binomial_bcast.o linear_bcast.o $(PROG).o
 INCLUDE_PATH=./
 
-CXX=mpic++.openmpi
-CXXFLAGS=-Wall -std=c++17 -o -I$(INCLUDE_PATH) -pthread \
-		 -lboost_system -lboost_date_time -lboost_thread \
-		 -L/usr/lib64
+CXX=mpic++
+CXXFLAGS=-Wall -std=c++17 -I$(INCLUDE_PATH) -pthread
+#		 -lboost_system -lboost_date_time -lboost_thread \
+#		 -L/usr/lib64
 
 all: $(PROG)
 

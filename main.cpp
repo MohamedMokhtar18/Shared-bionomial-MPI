@@ -1,4 +1,5 @@
-
+#include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include "binomial_bcast.h"
 #include "linear_bcast.h"
@@ -110,7 +111,7 @@ int main(int argc, char *argv[])
     if (my_rank == 0 && bcast_type != test)
     {
         double start, finish, transfer_time;
-        int i, mid, length, test_value;
+        int i, length, test_value;
         length = start_length;
         descr_t descr;
         descr.root = 0;

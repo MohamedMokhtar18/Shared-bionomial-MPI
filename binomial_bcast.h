@@ -3,7 +3,7 @@
 #include <mpi.h>
 using buf_dtype = float; /*type of transfered message*/
 #include "utils.h"
-#include <bits/stdc++.h>
+//#include <bits/stdc++.h>
 
 int RMA_Bcast_binomial(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
                        descr_t &descr, int nproc,

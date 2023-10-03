@@ -3,7 +3,8 @@
 #include <mpi.h>
 using buf_dtype = float; /*type of transfered message*/
 #include "utils.h"
-#include <bits/stdc++.h>
+//#include <bits/stdc++.h>
+
 void RMA_Bcast_binomial_OneSide(buf_dtype *origin_addr, MPI_Datatype origin_datatype, MPI_Aint target_disp, int my_rank,
                      descr_t descr, int nproc, MPI_Win win, MPI_Comm comm);
 int send_loop(buf_dtype *origin_addr, MPI_Datatype origin_datatype, int my_rank,

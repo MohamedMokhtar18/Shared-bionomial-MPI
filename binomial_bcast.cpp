@@ -37,8 +37,8 @@ int send_loop(buf_dtype *origin_addr, buf_dtype *rcv_buf, int my_rank,
             if (rank < nproc)
             {
                 rank = comp_rank(rank, descr.root, nproc); // Compute rank from srank
-                /*//! offset  is defined so that rcv_buf(xxx+offset) in process 'my_rank' is the same location as
-/*                              //!  rcv_buf(xxx) in process 'rank':                                       */
+                //! offset  is defined so that rcv_buf(xxx+offset) in process 'my_rank' is the same location as
+                              //!  rcv_buf(xxx) in process 'rank':
                 offset = +(rank - master_root) * max_length;
                 if (rcv_buf[offset] != 0)
                     break;
